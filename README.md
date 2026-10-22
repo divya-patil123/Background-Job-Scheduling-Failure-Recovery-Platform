@@ -1,203 +1,150 @@
-# JobFlow — Background Job Scheduling & Failure Recovery Platform
+# JobFlow – Background Job Scheduling & Failure Recovery Platform
 
-JobFlow is a single-instance background-job platform with a React operations console and a Spring Boot API. It manages scheduled work, dispatches tasks to a bounded worker pool, records execution attempts, retries failures, and raises persisted administrator alerts.
+A Java-based job scheduling platform built with Spring Boot and MySQL to schedule background tasks, track execution history, automatically retry failed jobs, and alert administrators when repeated failures occur.
 
-## Features
+## 🚀 Key Features
 
-- REST APIs for job CRUD, enable/disable, manual triggers, execution history, and alerts.
-- Interval and six-field cron schedules, persisted in MySQL and discovered by a polling scheduler.
-- Controlled handlers for simulated notifications, sample reports, and sample batch processing.
-- Bounded worker pool with explicit rejection behavior and graceful shutdown.
-- Durable execution and per-attempt history, exponential retry backoff, and threshold-based alert generation.
-- Single-instance database claim to prevent overlapping runs of the same job.
-- Bean Validation, a global error response format, OpenAPI UI, and Actuator endpoints.
-- A responsive React + TypeScript console, packaged in the executable Spring Boot JAR.
-- Auth0 authentication with permission-based viewer, operator, and administrator access.
+- **Job Scheduling:** Schedule background tasks using configurable schedules.
+- **Execution Tracking:** Maintain job execution history and status.
+- **Automatic Retry:** Retry failed jobs with configurable retry attempts.
+- **Failure Recovery:** Handle interrupted jobs and recover eligible tasks.
+- **Admin Alerts:** Record alerts when jobs repeatedly fail.
+- **REST APIs:** Manage scheduled jobs and monitor their execution.
+- **Multithreading:** Execute background tasks using a managed thread pool.
+- **Database Integration:** Persist jobs, execution attempts, and alerts in MySQL.
+- **Unit Testing:** Test application functionality using JUnit and Mockito.
 
-## Architecture and design
+## 🛠️ Tech Stack
 
-Controllers use DTOs and delegate to services. Job configuration and history use separate JPA entities and repositories. The scheduler identifies due work and atomically claims it before submission; workers perform task logic outside database transactions. A `JobExecution` is one trigger, while a `JobExecutionAttempt` is each try within that execution.
+| Technology | Purpose |
+|---|---|
+| Java 17 | Core application development |
+| Spring Boot | Backend framework and REST APIs |
+| Spring Scheduler | Background job scheduling |
+| MySQL | Persistent data storage |
+| Multithreading | Concurrent task execution |
+| Maven | Build and dependency management |
+| JUnit & Mockito | Testing |
+| React & TypeScript | Frontend dashboard |
 
-The detailed lifecycle, schema, API examples, and Java concepts are in:
+## 🏗️ System Overview
 
-- [Architecture](./docs/ARCHITECTURE.md)
-- [Database design](./docs/DATABASE_DESIGN.md)
-- [API documentation](./docs/API_DOCUMENTATION.md)
-- [Project learnings](./docs/PROJECT_LEARNINGS.md)
+1. Users schedule background jobs through the application.
+2. The scheduler identifies jobs that are due for execution.
+3. A managed worker pool executes the scheduled tasks.
+4. The application records execution status and history.
+5. Failed jobs are retried according to configured retry limits.
+6. Repeated failures generate alerts for administrators.
 
-## Technology stack
+## 📂 Project Structure
 
-Java 17, Spring Boot 3.4.5, Spring Web, Spring Data JPA/Hibernate, MySQL 8, Bean Validation, Spring Scheduling, `ThreadPoolTaskExecutor`, Actuator, springdoc OpenAPI, Maven, React 18, TypeScript, Vite, Auth0 React SDK, JUnit 5, Mockito, and H2.
-
-## Prerequisites
-
-- JDK 17
-- Maven 3.6.3 or newer
-- Node.js 22 and npm 10 (the Maven build installs these into `target` automatically)
-- MySQL 8 for the default application configuration
-
-## Local development without MySQL
-
-For development only, the opt-in `h2-development` Maven profile adds H2 at runtime. Start the app with the `dev-h2` Spring profile:
-
-```powershell
-mvn -Ph2-development spring-boot:run "-Dspring-boot.run.profiles=dev-h2"
+```text
+JobFlow/
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── com/jobflow/
+│   │   └── resources/
+│   └── test/
+├── frontend/
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── DATABASE_DESIGN.md
+│   ├── API_DOCUMENTATION.md
+│   └── PROJECT_LEARNINGS.md
+├── pom.xml
+└── README.md
 ```
 
-Alternatively, package with `mvn -Ph2-development package` and run the JAR with:
+## ⚙️ Prerequisites
 
-```powershell
-java -jar target/jobflow-1.0.0.jar --spring.profiles.active=dev-h2
+Install the following before running the application:
+
+- JDK 17 or later
+- Maven 3.6.3 or later
+- MySQL 8
+- Node.js and npm (for the frontend)
+
+## ▶️ Getting Started
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/YOUR-USERNAME/JobFlow.git
+cd JobFlow
 ```
 
-This profile uses an in-memory database and creates its schema on startup. All jobs and execution history are temporary and are lost when the application stops. It is for local development and API exploration only; it does not verify MySQL compatibility and must not be used as a production database. Without this profile, the application continues to use the configured MySQL datasource and schema validation.
+Replace `YOUR-USERNAME/JobFlow` with your actual GitHub repository path.
 
-## Setup
+### 2. Configure the Database
 
-1. Create the database using MySQL:
+Create a MySQL database for the application and configure the database connection using environment variables:
 
-   ```sql
-   SOURCE src/main/resources/db/create-database.sql;
-   ```
-
-2. Create the schema:
-
-   ```sql
-   USE jobflow;
-   SOURCE src/main/resources/db/schema.sql;
-   ```
-
-3. Set connection values in the shell where Maven will run. `.env.example` documents variable names, but Spring Boot does not load `.env` files automatically.
-
-   ```powershell
-   $env:DB_URL = "jdbc:mysql://localhost:3306/jobflow?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
-   $env:DB_USERNAME = "your-mysql-user"
-   $env:DB_PASSWORD = "your-local-password"
-   ```
-
-4. Start the application:
-
-   ```powershell
-   mvn spring-boot:run
-   ```
-
-Hibernate validates the database schema at startup; it will not create or modify tables. Sample jobs can be inserted from [sample-data.sql](./samples/sample-data.sql).
-
-## Auth0 authentication and roles
-
-The single-page app uses Auth0 for sign-in; Spring Security validates Auth0 access tokens on API requests. For a production deployment:
-
-1. Create an Auth0 **API** with an identifier such as `https://jobflow-api`, enable RBAC, and enable adding permissions to access tokens.
-2. Define these API permissions and assign them to users/roles:
-   - `jobflow:read` — read-only viewer access.
-   - `jobflow:operate` — viewer access plus create, edit, enable/disable, trigger, and acknowledge alerts.
-   - `jobflow:admin` — operator access plus job deletion.
-3. Create an Auth0 Single Page Application. Add the deployed application origin to **Allowed Callback URLs**, **Allowed Logout URLs**, and **Allowed Web Origins** (for local use, `http://localhost:8080`).
-4. Set the server environment variables below. `AUTH0_ISSUER_URI` must be the tenant issuer URL, including its trailing slash; `AUTH0_AUDIENCE` must exactly match the API identifier.
-5. Start the app and open its origin. The browser requests an API access token; no Auth0 client secret is stored in the frontend or project files.
-
-```powershell
-$env:AUTH0_ENABLED = "true"
-$env:AUTH0_ISSUER_URI = "https://your-tenant.region.auth0.com/"
-$env:AUTH0_AUDIENCE = "https://jobflow-api"
-$env:AUTH0_CLIENT_ID = "your-auth0-spa-client-id"
+```text
+DB_URL=jdbc:mysql://localhost:3306/jobflow
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
 ```
 
-When Auth0 is disabled, API access is denied except when using the explicit `dev-h2` development profile. Configure Auth0 before exposing the application outside a trusted local development environment.
+Use the database scripts and configuration included in the project.
 
-## Configuration
+### 3. Run the Backend
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `DB_URL` | `jdbc:mysql://localhost:3306/jobflow?...` | MySQL JDBC URL |
-| `DB_USERNAME` | Required | MySQL user |
-| `DB_PASSWORD` | Required | MySQL password |
-| `SERVER_PORT` | `8080` | HTTP port |
-| `SCHEDULER_POLL_INTERVAL` | `1000` ms | Delay between scheduler polls |
-| `SCHEDULER_BATCH_SIZE` | `100` | Maximum due jobs examined per poll |
-| `WORKER_CORE_POOL_SIZE` | `4` | Core worker threads |
-| `WORKER_MAX_POOL_SIZE` | `8` | Maximum worker threads |
-| `WORKER_QUEUE_CAPACITY` | `100` | Bounded queue capacity |
-| `WORKER_SHUTDOWN_WAIT_SECONDS` | `30` | Graceful worker shutdown wait |
-| `AUTH0_ENABLED` | `false` | Enables Auth0 JWT validation and API authorization |
-| `AUTH0_ISSUER_URI` | Empty | Auth0 tenant issuer URI (required when enabled) |
-| `AUTH0_AUDIENCE` | Empty | Auth0 API identifier (required when enabled) |
-| `AUTH0_CLIENT_ID` | Empty | Auth0 SPA client ID returned to the browser |
+Build and test the application:
 
-## API and monitoring
-
-- OpenAPI UI: `http://localhost:8080/swagger-ui.html`
-- Actuator: `/actuator/health`, `/actuator/info`, `/actuator/metrics`
-- API examples and status codes: [API documentation](./docs/API_DOCUMENTATION.md)
-
-### Create a scheduled notification job
-
-```http
-POST /api/jobs
-Content-Type: application/json
+```bash
+mvn clean package
 ```
 
-```json
-{
-  "name": "nightly-notification",
-  "taskType": "NOTIFICATION",
-  "scheduleType": "INTERVAL",
-  "intervalSeconds": 3600,
-  "configuration": {
-    "message": "Nightly processing completed"
-  },
-  "maxRetries": 3,
-  "initialRetryDelayMs": 1000,
-  "maxRetryDelayMs": 60000,
-  "failureThreshold": 3
-}
+Run the application using your configured Spring profile:
+
+```bash
+mvn spring-boot:run
 ```
 
-## Tests
+Ensure your database settings and required environment variables are configured before starting the application.
 
-Run all unit tests:
+### 4. Run Tests
 
-```powershell
+```bash
 mvn test
 ```
 
-Run the opt-in MySQL integration test against a dedicated database with the schema already applied:
+## 📖 Documentation
 
-```powershell
-$env:DB_URL = "jdbc:mysql://localhost:3306/jobflow_it?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
-$env:DB_USERNAME = "your-mysql-user"
-$env:DB_PASSWORD = "your-local-password"
-mvn -Pmysql-integration verify
-```
+Additional project documentation is available in the `docs/` directory:
 
-First create `jobflow_it` and apply `src/main/resources/db/schema.sql` to that database. The integration test validates that the connection is MySQL, round-trips JSON configuration and execution/attempt history, and races two independent transactions to ensure only one can claim a job. It creates uniquely named test rows and removes them afterward. Use a disposable database: schema creation is not automatic, and any rows already present in that database are retained.
+- [Architecture](docs/ARCHITECTURE.md)
+- [Database Design](docs/DATABASE_DESIGN.md)
+- [API Documentation](docs/API_DOCUMENTATION.md)
+- [Project Learnings](docs/PROJECT_LEARNINGS.md)
 
-Build and package the complete product. Maven installs the pinned Node/npm toolchain, type-checks and builds the frontend, copies its assets into Spring Boot's static-resource directory, and creates one executable JAR:
+## 💡 What I Learned
 
-```powershell
-mvn -Ph2-development clean package
-```
+- Designing REST APIs using Spring Boot.
+- Scheduling and executing background tasks.
+- Managing concurrent execution with multithreading.
+- Implementing retry logic and failure recovery.
+- Persisting execution history and status in MySQL.
+- Writing automated tests using JUnit and Mockito.
+- Structuring a backend application for maintainability.
 
-The development build can be launched without MySQL or Auth0:
+## 🔮 Future Enhancements
 
-```powershell
-java -jar target/jobflow-1.0.0.jar --spring.profiles.active=dev-h2
-```
+- Add real-time execution monitoring.
+- Introduce role-based access control.
+- Add email or messaging notifications for administrators.
+- Support distributed scheduling across multiple application instances.
 
-Open `http://localhost:8080`. For the frontend-only Vite development server, start the Spring Boot API on port 8080 and run `node .\node_modules\vite\bin\vite.js --host 127.0.0.1` from the `frontend` directory; the Vite proxy forwards `/api` requests to that backend.
+## 👩‍💻 Author
 
-The default suite focuses on retry delay calculations, scheduling calculations, task configuration validation, job validation, failure retry decisions, alert thresholds, and resetting the consecutive-failure count. `JobSchedulerRecoveryIntegrationTest` uses H2 to verify persisted restart recovery for queued, interrupted, and due-retry executions, successful completion after recovery, safe handling of a running execution without an attempt, and one-time retry claiming. The opt-in MySQL integration test is not part of the default suite; it requires the configured database above.
+**Divya Patil**
 
-## Screenshots
+Computer Engineering Graduate · 2026
 
-<!-- Add API client or Swagger UI screenshots here when available. -->
+- GitHub: [divya-patil123](https://github.com/divya-patil123)
+- LinkedIn: [Connect with me](https://linkedin.com/in/divya-patil-4ab8a2295)
 
-## Reliability limitations
+---
 
-Execution state, attempt history, and retry timestamps are persisted in MySQL. On startup, JobFlow recovers queued executions, marks attempts left `RUNNING` as interrupted, and applies the normal retry limit/backoff policy. Due retries are claimed by a conditional database update, so one retry execution is only queued once. A `RUNNING` execution with no corresponding running attempt is failed and its job lock released instead of blindly replaying a potentially completed side effect.
-
-Recovery is at-least-once, not exactly-once. A process can stop after an external side effect succeeds but before success is persisted; a restart may retry that attempt. External task handlers should pass the stable `TaskContext.idempotencyKey()` (the same for all attempts of one execution) to downstream systems that support idempotency, and should reconcile ambiguous outcomes where possible. The built-in handlers are simulations and do not perform external side effects. Recovery assumes one application instance: multiple instances need distributed coordination and fencing before production use. Scheduler polling advances missed schedules to the next future occurrence rather than replaying every missed interval.
-
-## Future improvements
-
-Possible follow-ups include distributed locking, task-specific idempotency keys, metrics for execution outcomes, email alert delivery, and database migration tooling.
+*JobFlow demonstrates practical Java backend development through job scheduling, concurrent execution, failure handling, and automated testing.*
