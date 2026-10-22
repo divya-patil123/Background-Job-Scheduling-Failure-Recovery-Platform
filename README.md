@@ -70,11 +70,13 @@ Install the following before running the application:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/JobFlow.git
+
+git clone https://github.com/divya-patil123/JobFlow.git
 cd JobFlow
+
 ```
 
-Replace `YOUR-USERNAME/JobFlow` with your actual GitHub repository path.
+
 
 ### 2. Configure the Database
 
@@ -136,14 +138,6 @@ Additional project documentation is available in the `docs/` directory:
 - Add email or messaging notifications for administrators.
 - Support distributed scheduling across multiple application instances.
 
-## 👩‍💻 Author
-
-**Divya Patil**
-
-Computer Engineering Graduate · 2026
-
-- GitHub: [divya-patil123](https://github.com/divya-patil123)
-- LinkedIn: [Connect with me](https://linkedin.com/in/divya-patil-4ab8a2295)
 
 ---
 
